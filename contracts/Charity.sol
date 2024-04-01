@@ -169,6 +169,11 @@ contract CharityExchanger {
     event Buy(address indexed _buyer, uint _value);
     event Sell(address indexed _seller, uint _value);
 
+    constructor() {
+        token = new CharityToken(address(this));
+        owner = payable(msg.sender);
+    }
+
     modifier checkTokenSufficiency(address _from, uint _value) {
         // модификатор для проверки достаточности количества токенов для совершения операции
         require(_value > 0 && token.balanceOf(_from) >= _value, "Incorrect value for transaction!");
