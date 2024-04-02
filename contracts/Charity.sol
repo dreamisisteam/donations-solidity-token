@@ -198,7 +198,7 @@ contract CharityExchanger {
         // TODO: донат для рандомного человека
     }
 
-    receive() external payable checkTokenSufficiency(address(this), msg.value) {
+    receive() external payable {
         // продажа обменником токенов
         address _to = msg.sender;
         uint _value = msg.value;
