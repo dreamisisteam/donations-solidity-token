@@ -100,25 +100,20 @@ contract Erc20 is InterfaceErc20 {
 
     function transfer(address _to, uint256 _value) external checkTokenSufficiency(msg.sender, _value) returns(bool) {
         address _from = msg.sender;
-
-        bool _status = _beforeTokenTransfer(_from, _to, _value);
-
-        if (_status) {
-            balances[_from] -= _value;
-            balances[_to] += _value;
-
-            emit Transfer(_from, _to, _value);
-        }
-
+        bool _status = _transfer(_from, _to, _value);
         return _status;
     }
 
     function transferFrom(address _from, address _to, uint256 _value) external checkTokenSufficiency(_from, _value) returns(bool) {
+        require(allowances[_from][_to] >= 0, "No allowance provided for this transaction!");
+        bool _status = _transfer(_from, _to, _value);
+        return _status;
+    }
+
+    function _transfer(address _from, address _to, uint256 _value) internal returns(bool) {
         bool _status = _beforeTokenTransfer(_from, _to, _value);
 
         if (_status) {
-            require(allowances[_from][_to] >= 0, "No allowance provided for this transaction!");
-
             balances[_from] -= _value;
             balances[_to] += _value;
 
@@ -154,10 +149,98 @@ contract Erc20 is InterfaceErc20 {
 
 
 contract CharityToken is Erc20 {
+    address[] internal neediesRegistry; 
+
+    mapping(address => uint256) internal donateNeeds;
+    mapping(address => uint256) internal donateBalances;
+
     constructor(address _exchanger) Erc20("CharityToken", "CHR", _exchanger, 300) {}
 
-    // TODO: _beforeTokenTransfer логика
-    // TODO: _beforeTokenApprove логика
+    function registerDonateNeeds(uint _needs) external {
+        // регистрация адреса для фиксации необходимости в донатах
+        require(_needs >= 0, "Needs should be > 0!");
+
+        address _needy = msg.sender;
+
+        neediesRegistry.push(msg.sender);
+        donateNeeds[msg.sender] = _needs;
+
+        emit NeedsRegister(_needy, _needs);
+    }
+
+    function donate(uint _value) external checkTokenSufficiency(msg.sender, _value) {
+        // донат для одного рандомного нуждающегося
+        address _from = msg.sender;
+        
+        uint _index = uint(block.number % neediesRegistry.length);
+        address _to = neediesRegistry[_index];
+
+        bool _status = _transfer(_from, _to, _value);
+
+        if (_status) {
+            _checkNeedyDonationsNeeds(_to, _value, _index);
+        }
+    }
+
+    function donateAll(uint _value) external checkTokenSufficiency(msg.sender, _value) {
+        // донат для всех нуждающихся
+        address _from = msg.sender;
+        uint _value_per_needy = _value / neediesRegistry.length;
+
+        address[] memory newNeediesRegistry = new address[](neediesRegistry.length);
+
+        // копирование массива
+        for (uint i; i < neediesRegistry.length; i++) {
+            newNeediesRegistry[i] = neediesRegistry[i];
+        }
+
+        uint _deletedCount = 0;
+
+        // осуществление перевода
+        for (uint i; i < newNeediesRegistry.length; i++) {
+            address _to = newNeediesRegistry[i];
+            bool _status = _transfer(_from, _to, _value_per_needy);
+
+            if (_status) {  // при успешном переводе проверяем, утолили ли мы требования нуждающегося
+                bool _isNeedy = _checkNeedyDonationsNeeds(_to, _value_per_needy, i - _deletedCount);
+
+                if (!_isNeedy) {
+                    _deletedCount++;  // формирование смещения индекса
+                }
+            }
+        }
+    }
+
+    function _checkNeedyDonationsNeeds(address _needy, uint _value, uint _index) internal returns(bool) {
+        // проверка необходимости получения донатов после поступления новой суммы
+        donateBalances[_needy] += _value;
+
+        if (donateBalances[_needy] >= donateNeeds[_needy]) {
+            delete donateBalances[_needy];
+            delete donateNeeds[_needy];
+
+            _removeNeedyFromRegistry(_index);
+
+            emit NeedsAchieved(_needy);
+
+            return false;
+        }
+
+        return true;
+    }
+
+    function _removeNeedyFromRegistry(uint _index) internal {
+        require(_index < neediesRegistry.length, "Index out of registry!");
+
+        for (uint i = _index; i < neediesRegistry.length - 1; i++) {
+            neediesRegistry[i] = neediesRegistry[i + 1];
+        }
+
+        neediesRegistry.pop();
+    }
+
+    event NeedsRegister(address indexed _needy, uint _needs);
+    event NeedsAchieved(address indexed _needy);
 }
 
 
@@ -194,11 +277,7 @@ contract CharityExchanger {
         emit Sell(_from, _value);
     }
 
-    function donate(uint _value) public checkTokenSufficiency(msg.sender, _value) {
-        // TODO: донат для рандомного человека
-    }
-
-    receive() external payable {
+    receive() external payable checkTokenSufficiency(address(this), msg.value) {
         // продажа обменником токенов
         address _to = msg.sender;
         uint _value = msg.value;
