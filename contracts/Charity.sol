@@ -170,8 +170,10 @@ contract CharityToken is Erc20 {
 
     function donate(uint _value) external checkTokenSufficiency(msg.sender, _value) {
         // донат для одного рандомного нуждающегося
+        require(neediesRegistry.length > 0, "No needies now!");
+
         address _from = msg.sender;
-        
+
         uint _index = uint(block.number % neediesRegistry.length);
         address _to = neediesRegistry[_index];
 
@@ -184,6 +186,8 @@ contract CharityToken is Erc20 {
 
     function donateAll(uint _value) external checkTokenSufficiency(msg.sender, _value) {
         // донат для всех нуждающихся
+        require(neediesRegistry.length > 0, "No needies now!");
+
         address _from = msg.sender;
         uint _value_per_needy = _value / neediesRegistry.length;
 
