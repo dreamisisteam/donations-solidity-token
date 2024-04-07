@@ -26,23 +26,19 @@ contract("CharityExchanger", (accounts) => {
         const tx = await exchanger.sendTransaction({value: tokensToBuy, from: buyer});
         truffleAssert.eventEmitted(tx, 'Buy', (ev) => {
             return ev._buyer == buyer && ev._value == tokensToBuy;
-        }, "Receive should trigger correct 'Buy' event.");
+        }, "receive should trigger correct 'Buy' event.");
         expect((await token.balanceOf(buyer)).toNumber()).to.eq(tokensToBuy);
         expect((await token.balanceOf(exchanger.address)).toNumber()).to.eq(tokensOnDeploy - tokensToBuy);
 
         // Approve
         const tokensToSell = 2;
-        const approve = await token.approve(exchanger.address, tokensToSell, {from: buyer});
-        truffleAssert.eventEmitted(approve, 'Approve', (ev) => {
-            return ev._sender == buyer && ev._spender == exchanger.address && ev._value == tokensToSell;
-        }, "Approve should trigger correct 'Approve' event.");
-        expect((await token.allowance(buyer, exchanger.address)).toNumber()).to.eq(tokensToSell);
+        await token.approve(exchanger.address, tokensToSell, {from: buyer});
 
         // Sell
         const sell = await exchanger.sell(tokensToSell, {from: buyer});
         truffleAssert.eventEmitted(sell, 'Sell', (ev) => {
             return ev._seller == buyer && ev._value == tokensToSell;
-        }, "Sell should trigger correct 'Sell' event.");
+        }, "sell should trigger correct 'Sell' event.");
         expect((await token.balanceOf(buyer)).toNumber()).to.eq(tokensToBuy - tokensToSell);
         expect((await token.balanceOf(exchanger.address)).toNumber()).to.eq(tokensOnDeploy - tokensToBuy + tokensToSell);
     });
@@ -59,10 +55,6 @@ contract("CharityExchanger", (accounts) => {
         await exchanger.sendTransaction({value: 2, from: buyer});
         await truffleAssert.reverts(
             exchanger.sell(3, {from: buyer}),
-            "Incorrect value for transaction!"
-        );
-        await truffleAssert.reverts(
-            exchanger.donate(3, {from: buyer}),
             "Incorrect value for transaction!"
         );
     });

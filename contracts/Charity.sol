@@ -105,8 +105,11 @@ contract Erc20 is InterfaceErc20 {
     }
 
     function transferFrom(address _from, address _to, uint256 _value) external checkTokenSufficiency(_from, _value) returns(bool) {
-        require(allowances[_from][_to] >= 0, "No allowance provided for this transaction!");
+        require(allowances[_from][_to] >= _value, "No allowance provided for this transaction!");
         bool _status = _transfer(_from, _to, _value);
+        if (_status) {
+            allowances[_from][_to] -= _value;
+        }
         return _status;
     }
 
@@ -151,19 +154,27 @@ contract Erc20 is InterfaceErc20 {
 contract CharityToken is Erc20 {
     address[] internal neediesRegistry; 
 
-    mapping(address => uint256) internal donateNeeds;
-    mapping(address => uint256) internal donateBalances;
+    mapping(address => uint256) internal _donateNeeds;
+    mapping(address => uint256) internal _donateBalances;
 
     constructor(address _exchanger) Erc20("CharityToken", "CHR", _exchanger, 300) {}
 
+    function donateNeed(address _needie) external view returns(uint256) {
+        return _donateNeeds[_needie];
+    }
+
+    function donateBalance(address _needie) external view returns(uint256) {
+        return _donateBalances[_needie];
+    }
+
     function registerDonateNeeds(uint _needs) external {
         // регистрация адреса для фиксации необходимости в донатах
-        require(_needs >= 0, "Needs should be > 0!");
+        require(_needs > 0, "Needs should be > 0!");
 
         address _needy = msg.sender;
 
         neediesRegistry.push(msg.sender);
-        donateNeeds[msg.sender] = _needs;
+        _donateNeeds[msg.sender] = _needs;
 
         emit NeedsRegister(_needy, _needs);
     }
@@ -187,6 +198,7 @@ contract CharityToken is Erc20 {
     function donateAll(uint _value) external checkTokenSufficiency(msg.sender, _value) {
         // донат для всех нуждающихся
         require(neediesRegistry.length > 0, "No needies now!");
+        require(_value >= neediesRegistry.length, "Needies number is more than donation sum!");
 
         address _from = msg.sender;
         uint _value_per_needy = _value / neediesRegistry.length;
@@ -217,11 +229,11 @@ contract CharityToken is Erc20 {
 
     function _checkNeedyDonationsNeeds(address _needy, uint _value, uint _index) internal returns(bool) {
         // проверка необходимости получения донатов после поступления новой суммы
-        donateBalances[_needy] += _value;
+        _donateBalances[_needy] += _value;
 
-        if (donateBalances[_needy] >= donateNeeds[_needy]) {
-            delete donateBalances[_needy];
-            delete donateNeeds[_needy];
+        if (_donateBalances[_needy] >= _donateNeeds[_needy]) {
+            delete _donateBalances[_needy];
+            delete _donateNeeds[_needy];
 
             _removeNeedyFromRegistry(_index);
 
@@ -252,7 +264,6 @@ contract CharityExchanger {
     InterfaceErc20 public token;
     address payable public owner;
 
-    event Donate(address indexed _donater, uint _value);
     event Buy(address indexed _buyer, uint _value);
     event Sell(address indexed _seller, uint _value);
 
