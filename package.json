@@ -1,0 +1,30 @@
+{
+  "name": "blockchain-hw",
+  "version": "1.0.0",
+  "description": "REMIX DEFAULT WORKSPACE",
+  "main": "truffle-config.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/evenmare/blockchain-hw.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/evenmare/blockchain-hw/issues"
+  },
+  "homepage": "https://github.com/evenmare/blockchain-hw#readme",
+  "devDependencies": {
+    "chai": "^5.1.0",
+    "ganache": "^7.9.2",
+    "mocha": "^10.4.0",
+    "truffle": "^5.11.5",
+    "truffle-assertions": "^0.9.2"
+  }
+}
