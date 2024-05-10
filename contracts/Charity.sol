@@ -151,116 +151,104 @@ contract Erc20 is InterfaceErc20 {
 }
 
 
-contract CharityToken is Erc20 {
-    address[] internal neediesRegistry; 
+contract DonationToken is Erc20 {
+    address[] internal membersRegistry; 
+    mapping(address => bool) internal membersStatus; 
 
-    mapping(address => uint256) internal _donateNeeds;
+    mapping(address => mapping(string => uint256)) internal _donateNeeds;
     mapping(address => uint256) internal _donateBalances;
 
-    constructor(address _exchanger) Erc20("CharityToken", "CHR", _exchanger, 300) {}
+    constructor(address _exchanger) Erc20("DonationToken", "DNTT", _exchanger, 300) {}
 
-    function donateNeed(address _needie) external view returns(uint256) {
-        return _donateNeeds[_needie];
+    modifier allowOnlyToMember() {
+        // модификатор для ограничения доступа к функции для всех кроме участника объединения
+        require(membersStatus[msg.sender], "This operation is allowed only for member!");
+        _;
+    }
+
+    function donateNeed(address _needie, string memory _needName) external view returns(uint256) {
+        return _donateNeeds[_needie][_needName];
     }
 
     function donateBalance(address _needie) external view returns(uint256) {
         return _donateBalances[_needie];
     }
 
-    function registerDonateNeeds(uint _needs) external {
+    function registerDonateNeeds(string memory _needName, uint _needs) external allowOnlyToMember {
         // регистрация адреса для фиксации необходимости в донатах
         require(_needs > 0, "Needs should be > 0!");
 
         address _needy = msg.sender;
-
-        neediesRegistry.push(msg.sender);
-        _donateNeeds[msg.sender] = _needs;
+        _donateNeeds[_needy][_needName] = _needs;
 
         emit NeedsRegister(_needy, _needs);
     }
 
-    function donate(uint _value) external checkTokenSufficiency(msg.sender, _value) {
+    function donate(uint _value) external checkTokenSufficiency(msg.sender, _value) returns(bool) {
         // донат для одного рандомного нуждающегося
-        require(neediesRegistry.length > 0, "No needies now!");
+        require(membersRegistry.length > 0, "No needies now!");
 
         address _from = msg.sender;
 
-        uint _index = uint(block.number % neediesRegistry.length);
-        address _to = neediesRegistry[_index];
+        uint _index = uint(block.number % membersRegistry.length);
+        address _to = membersRegistry[_index];
 
         bool _status = _transfer(_from, _to, _value);
-
-        if (_status) {
-            _checkNeedyDonationsNeeds(_to, _value, _index);
-        }
+        return _status;
     }
 
-    function donateAll(uint _value) external checkTokenSufficiency(msg.sender, _value) {
+    function donateAll(uint _value) external checkTokenSufficiency(msg.sender, _value) returns(bool) {
         // донат для всех нуждающихся
-        require(neediesRegistry.length > 0, "No needies now!");
-        require(_value >= neediesRegistry.length, "Needies number is more than donation sum!");
+        require(membersRegistry.length > 0, "No needies now!");
+        require(_value >= membersRegistry.length, "Needies number is more than donation sum!");
 
         address _from = msg.sender;
-        uint _value_per_needy = _value / neediesRegistry.length;
-
-        address[] memory newNeediesRegistry = new address[](neediesRegistry.length);
-
-        // копирование массива
-        for (uint i; i < neediesRegistry.length; i++) {
-            newNeediesRegistry[i] = neediesRegistry[i];
-        }
-
-        uint _deletedCount = 0;
+        uint _value_per_needy = _value / membersRegistry.length;
+        bool _status_all = true;
 
         // осуществление перевода
-        for (uint i; i < newNeediesRegistry.length; i++) {
-            address _to = newNeediesRegistry[i];
+        for (uint i; i < membersRegistry.length; i++) {
+            address _to = membersRegistry[i];
             bool _status = _transfer(_from, _to, _value_per_needy);
+            _status_all = _status_all && _status;
+        }
 
-            if (_status) {  // при успешном переводе проверяем, утолили ли мы требования нуждающегося
-                bool _isNeedy = _checkNeedyDonationsNeeds(_to, _value_per_needy, i - _deletedCount);
+        return _status_all;
+    }
 
-                if (!_isNeedy) {
-                    _deletedCount++;  // формирование смещения индекса
-                }
+    function registerMember(address _newMember) external allowOnlyToOwner {
+        // регистрация участника
+        membersRegistry.push(_newMember);
+        membersStatus[_newMember] = true;
+    }
+
+    function disableMember(address _member) external allowOnlyToOwner {
+        // деактивация участника    
+        for (uint _index = 0; _index < membersRegistry.length - 1; _index++) {
+            if (membersRegistry[_index] == _member) {
+                _removeMemberFromRegistry(_index);
             }
         }
+
+        membersStatus[_member] = false;
     }
 
-    function _checkNeedyDonationsNeeds(address _needy, uint _value, uint _index) internal returns(bool) {
-        // проверка необходимости получения донатов после поступления новой суммы
-        _donateBalances[_needy] += _value;
+    function _removeMemberFromRegistry(uint _index) internal {
+        require(_index > membersRegistry.length, "Index out of registry!");
 
-        if (_donateBalances[_needy] >= _donateNeeds[_needy]) {
-            delete _donateBalances[_needy];
-            delete _donateNeeds[_needy];
-
-            _removeNeedyFromRegistry(_index);
-
-            emit NeedsAchieved(_needy);
-
-            return false;
+        for (uint i = _index; i < membersRegistry.length - 1; i++) {
+            membersRegistry[i] = membersRegistry[i + 1];
         }
 
-        return true;
-    }
-
-    function _removeNeedyFromRegistry(uint _index) internal {
-        require(_index < neediesRegistry.length, "Index out of registry!");
-
-        for (uint i = _index; i < neediesRegistry.length - 1; i++) {
-            neediesRegistry[i] = neediesRegistry[i + 1];
-        }
-
-        neediesRegistry.pop();
+        membersRegistry.pop();
     }
 
     event NeedsRegister(address indexed _needy, uint _needs);
-    event NeedsAchieved(address indexed _needy);
+    event MemberDisabled(address indexed _needy);
 }
 
 
-contract CharityExchanger {
+contract DonationExchanger {
     InterfaceErc20 public token;
     address payable public owner;
 
@@ -268,7 +256,7 @@ contract CharityExchanger {
     event Sell(address indexed _seller, uint _value);
 
     constructor() {
-        token = new CharityToken(address(this));
+        token = new DonationToken(address(this));
         owner = payable(msg.sender);
     }
 
