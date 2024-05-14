@@ -194,6 +194,7 @@ contract DonationToken is Erc20 {
         address _to = membersRegistry[_index];
 
         bool _status = _transfer(_from, _to, _value);
+        _donateBalances[_to] += _value;
         return _status;
     }
 
@@ -210,6 +211,7 @@ contract DonationToken is Erc20 {
         for (uint i; i < membersRegistry.length; i++) {
             address _to = membersRegistry[i];
             bool _status = _transfer(_from, _to, _value_per_needy);
+            _donateBalances[_to] += _value_per_needy;
             _status_all = _status_all && _status;
         }
 
@@ -218,12 +220,14 @@ contract DonationToken is Erc20 {
 
     function registerMember(address _newMember) external allowOnlyToOwner {
         // регистрация участника
+        require(membersStatus[_newMember] == false, "This needy is already a member!");
         membersRegistry.push(_newMember);
         membersStatus[_newMember] = true;
     }
 
     function disableMember(address _member) external allowOnlyToOwner {
-        // деактивация участника    
+        // деактивация участника
+        require(membersStatus[_member] == true, "This needy is not a member!");
         for (uint _index = 0; _index < membersRegistry.length - 1; _index++) {
             if (membersRegistry[_index] == _member) {
                 _removeMemberFromRegistry(_index);
@@ -231,6 +235,7 @@ contract DonationToken is Erc20 {
         }
 
         membersStatus[_member] = false;
+        emit MemberDisabled(_member);
     }
 
     function _removeMemberFromRegistry(uint _index) internal {

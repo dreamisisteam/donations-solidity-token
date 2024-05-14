@@ -1,8 +1,8 @@
 const truffleAssert = require('truffle-assertions');
-const CharityExchanger = artifacts.require("CharityExchanger");
-const CharityToken = artifacts.require("CharityToken");
+const DonationExchanger = artifacts.require("DonationExchanger");
+const DonationToken = artifacts.require("DonationToken");
 
-contract("CharityExchanger", (accounts) => {
+contract("DonationExchanger", (accounts) => {
     const tokensOnDeploy = 300;
     let exchanger;
     let token;
@@ -11,8 +11,8 @@ contract("CharityExchanger", (accounts) => {
 
     beforeEach(async function() {
         [owner, buyer] = accounts;
-        exchanger = await CharityExchanger.new();
-        token = await CharityToken.at(await exchanger.token());
+        exchanger = await DonationExchanger.new();
+        token = await DonationToken.at(await exchanger.token());
     });
     
     it("should have valid storage", async () => {
