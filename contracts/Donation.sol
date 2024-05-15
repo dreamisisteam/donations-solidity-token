@@ -30,7 +30,7 @@ interface InterfaceErc20 {
 contract Erc20 is InterfaceErc20 {
     string internal _name;
     string internal _symbol;
-    
+
     address internal owner;
 
     uint internal total;
@@ -135,7 +135,7 @@ contract Erc20 is InterfaceErc20 {
             allowances[_sender][_spender] = _value;
             emit Approve(_sender, _spender, _value);
         }
-        
+
         return _status;
     }
 
@@ -152,10 +152,17 @@ contract Erc20 is InterfaceErc20 {
 
 
 contract DonationToken is Erc20 {
-    address[] internal membersRegistry; 
-    mapping(address => bool) internal membersStatus; 
+    // [address, address, ...]
+    address[] public membersRegistry;
+    // {address: true, ...}
+    mapping(address => bool) public membersStatus;
 
-    mapping(address => mapping(string => uint256)) internal _donateNeeds;
+    // {address: ["guitar", "balalaika", ...]}
+    mapping(address => string[]) internal _donateNeedsNames;
+    // {address: {"guitar": {"total": 300, "index": 0, "actual": 1},
+    //            "balalaika": {"total": 500, "index": 1, "actual": 0}}}
+    mapping(address => mapping(string => mapping(string => uint256))) internal _donateNeeds; //
+    // {address: 900}
     mapping(address => uint256) internal _donateBalances;
 
     constructor(address _exchanger) Erc20("DonationToken", "DNTT", _exchanger, 300) {}
@@ -166,22 +173,47 @@ contract DonationToken is Erc20 {
         _;
     }
 
-    function donateNeed(address _needie, string memory _needName) external view returns(uint256) {
-        return _donateNeeds[_needie][_needName];
+    function donateNeedsNames(address _member) external view returns(string[] memory) {
+        return _donateNeedsNames[_member];
     }
 
-    function donateBalance(address _needie) external view returns(uint256) {
-        return _donateBalances[_needie];
+    function donateNeed(address _member, string memory _needName) external view returns(uint256) {
+        return _donateNeeds[_member][_needName]["total"];
+    }
+
+    function donateBalance(address _member) external view returns(uint256) {
+        return _donateBalances[_member];
     }
 
     function registerDonateNeeds(string memory _needName, uint _needs) external allowOnlyToMember {
-        // регистрация адреса для фиксации необходимости в донатах
+        // регистрация сбора на конкретную цель
         require(_needs > 0, "Needs should be > 0!");
+        require(bytes(_needName).length > 0, "Need name should not be blank!");
 
-        address _needy = msg.sender;
-        _donateNeeds[_needy][_needName] = _needs;
+        address _member = msg.sender;
 
-        emit NeedsRegister(_needy, _needs);
+        _donateNeedsNames[_member].push(_needName);
+        uint _indexNeed = _donateNeedsNames[_member].length - 1;
+
+        _donateNeeds[_member][_needName]["index"] = _indexNeed;
+        _donateNeeds[_member][_needName]["total"] = _needs;
+        _donateNeeds[_member][_needName]["actual"] = 1;
+
+        emit NeedsRegister(_member, _needName);
+    }
+
+    function deleteDonateNeeds(string memory _needName) external allowOnlyToMember {
+        // удаление сбора на конкретую цель
+        address _member = msg.sender;
+
+        require(_donateNeeds[_member][_needName]["actual"] != 0, "Should be actual donate need");
+
+        uint _index = _donateNeeds[_member][_needName]["index"];
+        _removeNeedFromNeedsNames(_member, _index);
+
+        _donateNeeds[_member][_needName]["actual"] = 0;
+
+        emit NeedsDeletion(_member, _needName);
     }
 
     function donate(uint _value) external checkTokenSufficiency(msg.sender, _value) returns(bool) {
@@ -204,14 +236,14 @@ contract DonationToken is Erc20 {
         require(_value >= membersRegistry.length, "Needies number is more than donation sum!");
 
         address _from = msg.sender;
-        uint _value_per_needy = _value / membersRegistry.length;
+        uint _value_per_member = _value / membersRegistry.length;
         bool _status_all = true;
 
         // осуществление перевода
         for (uint i; i < membersRegistry.length; i++) {
             address _to = membersRegistry[i];
-            bool _status = _transfer(_from, _to, _value_per_needy);
-            _donateBalances[_to] += _value_per_needy;
+            bool _status = _transfer(_from, _to, _value_per_member);
+            _donateBalances[_to] += _value_per_member;
             _status_all = _status_all && _status;
         }
 
@@ -223,6 +255,7 @@ contract DonationToken is Erc20 {
         require(membersStatus[_newMember] == false, "This needy is already a member!");
         membersRegistry.push(_newMember);
         membersStatus[_newMember] = true;
+        emit MemberRegister(_newMember);
     }
 
     function disableMember(address _member) external allowOnlyToOwner {
@@ -235,6 +268,7 @@ contract DonationToken is Erc20 {
         }
 
         membersStatus[_member] = false;
+
         emit MemberDisabled(_member);
     }
 
@@ -248,8 +282,21 @@ contract DonationToken is Erc20 {
         membersRegistry.pop();
     }
 
-    event NeedsRegister(address indexed _needy, uint _needs);
-    event MemberDisabled(address indexed _needy);
+    function _removeNeedFromNeedsNames(address _member, uint _index) internal {
+        require(_index > _donateNeedsNames[_member].length, "Index out of array!");
+
+         for (uint i = _index; i < _donateNeedsNames[_member].length - 1; i++) {
+            _donateNeedsNames[_member][i] = _donateNeedsNames[_member][i + 1];
+        }
+
+        _donateNeedsNames[_member].pop();
+    }
+
+    event NeedsRegister(address indexed _member, string _needName);
+    event NeedsDeletion(address indexed _member, string _needName);
+
+    event MemberRegister(address indexed _member);
+    event MemberDisabled(address indexed _member);
 }
 
 
@@ -275,7 +322,7 @@ contract DonationExchanger {
         // продажа токенов обменнику
         address _from = msg.sender;
         address _to = address(this);
-        
+
         uint _allowance = token.allowance(_from, address(this));
         require(_allowance >= _value, "No allowance!");
 
