@@ -1,7 +1,7 @@
 {
-  "name": "blockchain-hw",
+  "name": "donations-solidity-token",
   "version": "1.0.0",
-  "description": "REMIX DEFAULT WORKSPACE",
+  "description": "## Смарт-контракт DonationToken",
   "main": "truffle-config.js",
   "directories": {
     "test": "test"
@@ -11,15 +11,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/evenmare/blockchain-hw.git"
+    "url": "git+https://github.com/dreamisisteam/donations-solidity-token.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/evenmare/blockchain-hw/issues"
+    "url": "https://github.com/dreamisisteam/donations-solidity-token/issues"
   },
-  "homepage": "https://github.com/evenmare/blockchain-hw#readme",
+  "homepage": "https://github.com/dreamisisteam/donations-solidity-token#readme",
   "devDependencies": {
     "chai": "^5.1.0",
     "ganache": "^7.9.2",

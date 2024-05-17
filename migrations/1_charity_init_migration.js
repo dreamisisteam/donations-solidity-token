@@ -1,5 +1,5 @@
-var CharityExchanger = artifacts.require("CharityExchanger");
+var DonationExchanger = artifacts.require("DonationExchanger");
 
 module.exports = function(deployer) {
-    deployer.deploy(CharityExchanger);
+    deployer.deploy(DonationExchanger);
 };
