@@ -159,9 +159,9 @@ contract DonationToken is Erc20 {
 
     // {address: ["guitar", "balalaika", ...]}
     mapping(address => string[]) internal _donateNeedsNames;
-    // {address: {"guitar": {"total": 300, "index": 0, "actual": 1},
-    //            "balalaika": {"total": 500, "index": 1, "actual": 0}}}
-    mapping(address => mapping(string => mapping(string => uint256))) internal _donateNeeds; //
+    // {address: {"guitar": {"total": 300, "index": 0},
+    //            "balalaika": {"total": 500, "index": 1}}}
+    mapping(address => mapping(string => mapping(string => uint256))) internal _donateNeeds;
     // {address: 900}
     mapping(address => uint256) internal _donateBalances;
 
@@ -197,7 +197,6 @@ contract DonationToken is Erc20 {
 
         _donateNeeds[_member][_needName]["index"] = _indexNeed;
         _donateNeeds[_member][_needName]["total"] = _needs;
-        _donateNeeds[_member][_needName]["actual"] = 1;
 
         emit NeedsRegister(_member, _needName);
     }
@@ -206,19 +205,20 @@ contract DonationToken is Erc20 {
         // удаление сбора на конкретую цель
         address _member = msg.sender;
 
-        require(_donateNeeds[_member][_needName]["actual"] != 0, "Should be actual donate need");
+        require(_donateNeeds[_member][_needName]["total"] != 0, "Should be existing donate need!");
 
         uint _index = _donateNeeds[_member][_needName]["index"];
         _removeNeedFromNeedsNames(_member, _index);
 
-        _donateNeeds[_member][_needName]["actual"] = 0;
+        // ['total'] == 0 for deleted or not created needs
+        _donateNeeds[_member][_needName]["total"] = 0;
 
         emit NeedsDeletion(_member, _needName);
     }
 
     function donate(uint _value) external checkTokenSufficiency(msg.sender, _value) returns(bool) {
         // донат для одного рандомного нуждающегося
-        require(membersRegistry.length > 0, "No needies now!");
+        require(membersRegistry.length > 0, "No members yet!");
 
         address _from = msg.sender;
 
@@ -226,14 +226,15 @@ contract DonationToken is Erc20 {
         address _to = membersRegistry[_index];
 
         bool _status = _transfer(_from, _to, _value);
-        _donateBalances[_to] += _value;
+        if (_status)
+            _donateBalances[_to] += _value;
         return _status;
     }
 
     function donateAll(uint _value) external checkTokenSufficiency(msg.sender, _value) returns(bool) {
         // донат для всех нуждающихся
-        require(membersRegistry.length > 0, "No needies now!");
-        require(_value >= membersRegistry.length, "Needies number is more than donation sum!");
+        require(membersRegistry.length > 0, "No members yet!");
+        require(_value >= membersRegistry.length, "Members number is more than donation sum!");
 
         address _from = msg.sender;
         uint _value_per_member = _value / membersRegistry.length;
@@ -243,7 +244,8 @@ contract DonationToken is Erc20 {
         for (uint i; i < membersRegistry.length; i++) {
             address _to = membersRegistry[i];
             bool _status = _transfer(_from, _to, _value_per_member);
-            _donateBalances[_to] += _value_per_member;
+            if (_status)
+                _donateBalances[_to] += _value_per_member;
             _status_all = _status_all && _status;
         }
 
@@ -273,7 +275,7 @@ contract DonationToken is Erc20 {
     }
 
     function _removeMemberFromRegistry(uint _index) internal {
-        require(_index > membersRegistry.length, "Index out of registry!");
+        require(_index < membersRegistry.length, "Index out of registry!");
 
         for (uint i = _index; i < membersRegistry.length - 1; i++) {
             membersRegistry[i] = membersRegistry[i + 1];
@@ -283,7 +285,7 @@ contract DonationToken is Erc20 {
     }
 
     function _removeNeedFromNeedsNames(address _member, uint _index) internal {
-        require(_index > _donateNeedsNames[_member].length, "Index out of array!");
+        require(_index < _donateNeedsNames[_member].length, "Index out of array!");
 
          for (uint i = _index; i < _donateNeedsNames[_member].length - 1; i++) {
             _donateNeedsNames[_member][i] = _donateNeedsNames[_member][i + 1];
