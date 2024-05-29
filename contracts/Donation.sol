@@ -31,7 +31,7 @@ contract Erc20 is InterfaceErc20 {
     string internal _name;
     string internal _symbol;
 
-    address internal owner;
+    address public owner;
 
     uint internal total;
 
@@ -62,6 +62,10 @@ contract Erc20 is InterfaceErc20 {
         // модификатор для ограничения доступа к функции для всех кроме владельца
         require(msg.sender == owner, "This operation is allowed only for owner!");
         _;
+    }
+
+    function getOwner() external view returns(address) {
+        return owner;
     }
 
     function name() external view returns(string memory) {
@@ -152,6 +156,8 @@ contract Erc20 is InterfaceErc20 {
 
 
 contract DonationToken is Erc20 {
+    address public moderator;
+
     // [address, address, ...]
     address[] public membersRegistry;
     // {address: true, ...}
@@ -165,7 +171,15 @@ contract DonationToken is Erc20 {
     // {address: 900}
     mapping(address => uint256) internal _donateBalances;
 
-    constructor(address _exchanger) Erc20("DonationToken", "DNTT", _exchanger, 300) {}
+    constructor(address _exchanger, address _moderator) Erc20("DonationToken", "DNTT", _exchanger, 300) {
+        moderator = _moderator;
+    }
+
+    modifier allowOnlyToModerator() {
+        // модификатор для ограничения доступа к функции для всех кроме модератора токена
+        require(msg.sender == moderator, "This operation is allowed only to moderator!");
+        _;
+    }
 
     modifier allowOnlyToMember() {
         // модификатор для ограничения доступа к функции для всех кроме участника объединения
@@ -252,7 +266,7 @@ contract DonationToken is Erc20 {
         return _status_all;
     }
 
-    function registerMember(address _newMember) external allowOnlyToOwner {
+    function registerMember(address _newMember) external allowOnlyToModerator {
         // регистрация участника
         require(membersStatus[_newMember] == false, "This needy is already a member!");
         membersRegistry.push(_newMember);
@@ -260,7 +274,7 @@ contract DonationToken is Erc20 {
         emit MemberRegister(_newMember);
     }
 
-    function disableMember(address _member) external allowOnlyToOwner {
+    function disableMember(address _member) external allowOnlyToModerator {
         // деактивация участника
         require(membersStatus[_member] == true, "This needy is not a member!");
         for (uint _index = 0; _index < membersRegistry.length - 1; _index++) {
@@ -310,7 +324,7 @@ contract DonationExchanger {
     event Sell(address indexed _seller, uint _value);
 
     constructor() {
-        token = new DonationToken(address(this));
+        token = new DonationToken(address(this), msg.sender);
         owner = payable(msg.sender);
     }
 
