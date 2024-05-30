@@ -55,7 +55,7 @@ contract("DonationExchanger", (accounts) => {
         await exchanger.sendTransaction({value: 2, from: buyer});
         await truffleAssert.reverts(
             exchanger.sell(3, {from: buyer}),
-            "Incorrect value for transaction!"
+            "Not enough tokens!"
         );
     });
 });

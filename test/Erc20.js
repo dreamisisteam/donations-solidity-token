@@ -21,7 +21,7 @@ contract("Erc20", (accounts) => {
         // Try to transfer tokens from bankrupt
         await truffleAssert.reverts(
             token.transfer(owner, 5, {from: user}),
-            "Incorrect value for transaction!" 
+            "Not enough tokens!"
         );
 
         const tokensToTransfer = 3;
@@ -51,7 +51,7 @@ contract("Erc20", (accounts) => {
         // Try to transfer tokens from bankrupt
         await truffleAssert.reverts(
             token.transferFrom(user, owner, 5),
-            "Incorrect value for transaction!" 
+            "Not enough tokens!"
         );
 
         const tokensToTransfer = 3;

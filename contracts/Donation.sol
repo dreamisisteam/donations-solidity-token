@@ -53,8 +53,9 @@ contract Erc20 is InterfaceErc20 {
     }
 
     modifier checkTokenSufficiency(address _from, uint _value) {
+        require(_value > 0, "Incorrect value for transaction!");
         // модификатор для проверки достаточности количества токенов для совершения операции
-        require(_value > 0 && balanceOf(_from) >= _value, "Incorrect value for transaction!");
+        require(balanceOf(_from) >= _value, "Not enough tokens!");
         _;
     }
 
@@ -329,8 +330,9 @@ contract DonationExchanger {
     }
 
     modifier checkTokenSufficiency(address _from, uint _value) {
+        require(_value > 0, "Incorrect value for transaction!");
         // модификатор для проверки достаточности количества токенов для совершения операции
-        require(_value > 0 && token.balanceOf(_from) >= _value, "Incorrect value for transaction!");
+        require(token.balanceOf(_from) >= _value, "Not enough tokens!");
         _;
     }
 
