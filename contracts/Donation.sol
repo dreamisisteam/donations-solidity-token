@@ -85,7 +85,7 @@ contract Erc20 is InterfaceErc20 {
     }
 
     function decimals() external pure returns(uint) {
-        return 18;  // 1 wei
+        return 9;  // 1 gwei
     }
 
     function totalSupply() external view returns(uint256) {
@@ -195,6 +195,10 @@ contract DonationToken is Erc20 {
         _;
     }
 
+    function getMembersRegistry() external view returns(address[] memory) {
+        return membersRegistry;
+    }
+
     function donateNeedsNames(address _member) external view returns(string[] memory) {
         return _donateNeedsNames[_member];
     }
@@ -285,7 +289,7 @@ contract DonationToken is Erc20 {
     function disableMember(address _member) external allowOnlyToModerator {
         // деактивация участника
         require(membersStatus[_member] == true, "This needy is not a member!");
-        for (uint _index = 0; _index < membersRegistry.length - 1; _index++) {
+        for (uint _index = 0; _index < membersRegistry.length; _index++) {
             if (membersRegistry[_index] == _member) {
                 _removeMemberFromRegistry(_index);
             }
