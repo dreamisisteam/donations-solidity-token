@@ -51,11 +51,19 @@ contract("DonationExchanger", (accounts) => {
         );
     });
 
-    it("should not allow to sell or donate if not enough tokens", async () => {
+    it("should not allow to sell if not enough tokens", async () => {
         await exchanger.sendTransaction({value: 2, from: buyer});
         await truffleAssert.reverts(
             exchanger.sell(3, {from: buyer}),
-            "Incorrect value for transaction!"
+            "Not enough tokens!"
         );
+    });
+
+    it("should allow to buy more tokens than it has by the moment", async () => {
+        const tokensToBuy = 20000;
+        const tx = await exchanger.sendTransaction({value: tokensToBuy, from: buyer});
+        truffleAssert.eventEmitted(tx, 'Buy', (ev) => {
+            return ev._buyer == buyer && ev._value == tokensToBuy;
+        }, "receive should trigger correct 'Buy' event.");
     });
 });

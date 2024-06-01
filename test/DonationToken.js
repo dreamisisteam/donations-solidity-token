@@ -1,4 +1,5 @@
 const truffleAssert = require('truffle-assertions');
+const DonationExchanger = artifacts.require("DonationExchanger");
 const DonationToken = artifacts.require("DonationToken");
 
 contract("DonationToken", (accounts) => {
@@ -8,9 +9,11 @@ contract("DonationToken", (accounts) => {
     const initTokensNum = 300;
 
     beforeEach(async function() {
+        exchanger = await DonationExchanger.new();
+        token = await DonationToken.at(await exchanger.token());
+        await exchanger.sendTransaction({value: 300});
         [owner] = accounts;
         needies = accounts.slice(1, 4);
-        token = await DonationToken.new(owner);
     });
 
     it("should allow to register new member", async () => {
@@ -18,7 +21,7 @@ contract("DonationToken", (accounts) => {
 
         await truffleAssert.reverts(
             token.registerMember(newMember, {from: newMember}),
-            "This operation is allowed only for owner!"
+            "This operation is allowed only to moderator!"
         );
         const register = await token.registerMember(newMember);
         truffleAssert.eventEmitted(register, 'MemberRegister', (ev) => {
@@ -35,7 +38,7 @@ contract("DonationToken", (accounts) => {
         const newMember = needies[0];
         await truffleAssert.reverts(
             token.disableMember(newMember, {from: newMember}),
-            "This operation is allowed only for owner!"
+            "This operation is allowed only to moderator!"
         );
         await truffleAssert.reverts(
             token.disableMember(newMember),
@@ -108,10 +111,10 @@ contract("DonationToken", (accounts) => {
         expect((await token.donateNeed(member, needName)).toNumber()).to.eq(0);
     });
 
-    it("should allow to donate", async () => {        
+    it("should allow to donate", async () => {
         // Check donation when no needies
         await truffleAssert.reverts(
-            token.donate(1),
+            token.donate(1, {from: owner}),
             "No members yet!"
         );
 
@@ -132,7 +135,7 @@ contract("DonationToken", (accounts) => {
     it("should allow to donate all at once", async () => {
         // Check donation when no needies
         await truffleAssert.reverts(
-            token.donateAll(1),
+            token.donateAll(1, {from: owner}),
             "No members yet!" 
         );
 
