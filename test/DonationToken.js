@@ -7,11 +7,12 @@ contract("DonationToken", (accounts) => {
     let owner;
     let needies;
     const initTokensNum = 300;
+    const GweiToWei = 10**9;
 
     beforeEach(async function() {
         exchanger = await DonationExchanger.new();
         token = await DonationToken.at(await exchanger.token());
-        await exchanger.sendTransaction({value: 300});
+        await exchanger.sendTransaction({value: 300*GweiToWei});
         [owner] = accounts;
         needies = accounts.slice(1, 4);
     });

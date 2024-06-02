@@ -356,15 +356,17 @@ contract DonationExchanger {
         require(_allowance >= _value, "No allowance!");
 
         token.transferFrom(_from, _to, _value);
-        payable(_from).transfer(_value);
+        payable(_from).transfer(_value * 10**(18 - token.decimals()));
 
         emit Sell(_from, _value);
     }
 
     receive() external payable {
+        require(msg.value >= 10**(18 - token.decimals()), "Value is less than 1 gwei!");
+        require(msg.value % 10**(18 - token.decimals()) == 0, "Value should be integer gwei!");
         // продажа обменником токенов
         address _to = msg.sender;
-        uint _value = msg.value;
+        uint _value = msg.value / 10**(18 - token.decimals());
 
         token.transfer(_to, _value);
 
