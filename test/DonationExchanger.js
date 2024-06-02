@@ -4,6 +4,7 @@ const DonationToken = artifacts.require("DonationToken");
 
 contract("DonationExchanger", (accounts) => {
     const tokensOnDeploy = 300;
+    const GweiToWei = 10**9;
     let exchanger;
     let token;
     let owner;
@@ -22,8 +23,16 @@ contract("DonationExchanger", (accounts) => {
 
     it("should allow to buy and sell tokens", async () => {
         // Buy
+        await truffleAssert.reverts(
+            exchanger.sendTransaction({value: 1, from: buyer}),
+            "Value is less than 1 gwei!"
+        );
+        await truffleAssert.reverts(
+            exchanger.sendTransaction({value: 1.5*GweiToWei, from: buyer}),
+            "Value should be integer gwei!"
+        );
         const tokensToBuy = 3;
-        const tx = await exchanger.sendTransaction({value: tokensToBuy, from: buyer});
+        const tx = await exchanger.sendTransaction({value: tokensToBuy * GweiToWei, from: buyer});
         truffleAssert.eventEmitted(tx, 'Buy', (ev) => {
             return ev._buyer == buyer && ev._value == tokensToBuy;
         }, "receive should trigger correct 'Buy' event.");
@@ -44,7 +53,7 @@ contract("DonationExchanger", (accounts) => {
     });
 
     it("should not allow to sell if not approved", async () => {
-        await exchanger.sendTransaction({value: 2, from: buyer});
+        await exchanger.sendTransaction({value: 2 * GweiToWei, from: buyer});
         await truffleAssert.reverts(
             exchanger.sell(2, {from: buyer}),
             "No allowance!"
@@ -52,7 +61,7 @@ contract("DonationExchanger", (accounts) => {
     });
 
     it("should not allow to sell if not enough tokens", async () => {
-        await exchanger.sendTransaction({value: 2, from: buyer});
+        await exchanger.sendTransaction({value: 2 * GweiToWei, from: buyer});
         await truffleAssert.reverts(
             exchanger.sell(3, {from: buyer}),
             "Not enough tokens!"
@@ -61,7 +70,7 @@ contract("DonationExchanger", (accounts) => {
 
     it("should allow to buy more tokens than it has by the moment", async () => {
         const tokensToBuy = 20000;
-        const tx = await exchanger.sendTransaction({value: tokensToBuy, from: buyer});
+        const tx = await exchanger.sendTransaction({value: tokensToBuy * GweiToWei, from: buyer});
         truffleAssert.eventEmitted(tx, 'Buy', (ev) => {
             return ev._buyer == buyer && ev._value == tokensToBuy;
         }, "receive should trigger correct 'Buy' event.");

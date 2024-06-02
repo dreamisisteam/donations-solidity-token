@@ -85,7 +85,7 @@ contract Erc20 is InterfaceErc20 {
     }
 
     function decimals() external pure returns(uint) {
-        return 18;  // 1 wei
+        return 9;  // 1 gwei
     }
 
     function totalSupply() external view returns(uint256) {
@@ -195,6 +195,10 @@ contract DonationToken is Erc20 {
         _;
     }
 
+    function getMembersRegistry() external view returns(address[] memory) {
+        return membersRegistry;
+    }
+
     function donateNeedsNames(address _member) external view returns(string[] memory) {
         return _donateNeedsNames[_member];
     }
@@ -236,6 +240,16 @@ contract DonationToken is Erc20 {
         _donateNeeds[_member][_needName]["total"] = 0;
 
         emit NeedsDeletion(_member, _needName);
+    }
+
+    function donateTransfer(address _to, uint256 _value) external checkTokenSufficiency(msg.sender, _value) returns(bool) {
+        // донат для определенного мембера
+        require(membersStatus[_to], "Recipient is not a member!");
+        address _from = msg.sender;
+        bool _status = _transfer(_from, _to, _value);
+        if (_status)
+            _donateBalances[_to] += _value;
+        return _status;
     }
 
     function donate(uint _value) external checkTokenSufficiency(msg.sender, _value) returns(bool) {
@@ -285,7 +299,7 @@ contract DonationToken is Erc20 {
     function disableMember(address _member) external allowOnlyToModerator {
         // деактивация участника
         require(membersStatus[_member] == true, "This needy is not a member!");
-        for (uint _index = 0; _index < membersRegistry.length - 1; _index++) {
+        for (uint _index = 0; _index < membersRegistry.length; _index++) {
             if (membersRegistry[_index] == _member) {
                 _removeMemberFromRegistry(_index);
             }
@@ -352,15 +366,17 @@ contract DonationExchanger {
         require(_allowance >= _value, "No allowance!");
 
         token.transferFrom(_from, _to, _value);
-        payable(_from).transfer(_value);
+        payable(_from).transfer(_value * 10**(18 - token.decimals()));
 
         emit Sell(_from, _value);
     }
 
     receive() external payable {
+        require(msg.value >= 10**(18 - token.decimals()), "Value is less than 1 gwei!");
+        require(msg.value % 10**(18 - token.decimals()) == 0, "Value should be integer gwei!");
         // продажа обменником токенов
         address _to = msg.sender;
-        uint _value = msg.value;
+        uint _value = msg.value / 10**(18 - token.decimals());
 
         token.transfer(_to, _value);
 
