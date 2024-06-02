@@ -112,7 +112,28 @@ contract("DonationToken", (accounts) => {
         expect((await token.donateNeed(member, needName)).toNumber()).to.eq(0);
     });
 
-    it("should allow to donate", async () => {
+    it("should allow to donate specific member", async () => {
+        // Check donation when no needies
+        await truffleAssert.reverts(
+            token.donateTransfer(needies[0], 1),
+            "Recipient is not a member!"
+        );
+
+        // Add needy
+        const tokensNeeded = 3;
+        const needy = needies[0];
+        const needName = "napokushat";
+        await token.registerMember(needy);
+        await token.registerDonateNeeds(needName, tokensNeeded, {from: needy});
+
+        // Donate to needy
+        const tokensToDonate = 1;
+        await token.donateTransfer(needy, tokensToDonate);
+        expect((await token.donateNeed(needy, needName)).toNumber()).to.eq(tokensNeeded);
+        expect((await token.donateBalance(needy)).toNumber()).to.eq(tokensToDonate);
+    });
+
+    it("should allow to donate random", async () => {
         // Check donation when no needies
         await truffleAssert.reverts(
             token.donate(1, {from: owner}),

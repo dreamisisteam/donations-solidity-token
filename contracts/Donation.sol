@@ -242,6 +242,16 @@ contract DonationToken is Erc20 {
         emit NeedsDeletion(_member, _needName);
     }
 
+    function donateTransfer(address _to, uint256 _value) external checkTokenSufficiency(msg.sender, _value) returns(bool) {
+        // донат для определенного мембера
+        require(membersStatus[_to], "Recipient is not a member!");
+        address _from = msg.sender;
+        bool _status = _transfer(_from, _to, _value);
+        if (_status)
+            _donateBalances[_to] += _value;
+        return _status;
+    }
+
     function donate(uint _value) external checkTokenSufficiency(msg.sender, _value) returns(bool) {
         // донат для одного рандомного нуждающегося
         require(membersRegistry.length > 0, "No members yet!");
